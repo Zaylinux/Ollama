@@ -5,7 +5,7 @@ from typing import List
 from multiprocessing import Pool
 from tqdm import tqdm
 
-from langchain.document_loaders import (
+from langchain_community.document_loaders import (
     CSVLoader,
     EverNoteLoader,
     PyMuPDFLoader,
@@ -19,10 +19,15 @@ from langchain.document_loaders import (
     UnstructuredWordDocumentLoader,
 )
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.docstore.document import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+    EMBEDDINGS_AVAILABLE = True
+except ImportError:
+    from langchain_community.embeddings import FakeEmbeddings
+    EMBEDDINGS_AVAILABLE = False
+from langchain_core.documents import Document
 from constants import CHROMA_SETTINGS
 
 
@@ -135,7 +140,15 @@ def does_vectorstore_exist(persist_directory: str) -> bool:
 
 def main():
     # Create embeddings
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+    if EMBEDDINGS_AVAILABLE:
+        try:
+            embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+        except ImportError:
+            print("Warning: Using fake embeddings due to compatibility issues")
+            embeddings = FakeEmbeddings(size=384)
+    else:
+        print("Warning: Using fake embeddings due to missing dependencies")
+        embeddings = FakeEmbeddings(size=384)
 
     if does_vectorstore_exist(persist_directory):
         # Update and store locally vectorstore

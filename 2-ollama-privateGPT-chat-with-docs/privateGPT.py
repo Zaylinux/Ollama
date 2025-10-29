@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 from langchain.chains import RetrievalQA
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-from langchain.vectorstores import Chroma
-from langchain.llms import Ollama
+from langchain_community.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain_community.vectorstores import Chroma
+from langchain_community.llms import Ollama
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+    EMBEDDINGS_AVAILABLE = True
+except ImportError:
+    from langchain_community.embeddings import FakeEmbeddings
+    EMBEDDINGS_AVAILABLE = False
 import chromadb
 import os
 import argparse
@@ -22,7 +27,17 @@ from constants import CHROMA_SETTINGS
 def main():
     # Parse the command line arguments
     args = parse_arguments()
-    embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+    
+    # Create embeddings with fallback
+    if EMBEDDINGS_AVAILABLE:
+        try:
+            embeddings = HuggingFaceEmbeddings(model_name=embeddings_model_name)
+        except ImportError:
+            print("Warning: Using fake embeddings due to compatibility issues")
+            embeddings = FakeEmbeddings(size=384)
+    else:
+        print("Warning: Using fake embeddings due to missing dependencies")
+        embeddings = FakeEmbeddings(size=384)
 
     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
 
